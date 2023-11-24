@@ -3,27 +3,31 @@ import json
 import random
 import time
 
-HOST = "127.0.0.1"  # The server's hostname or IP address
-PORT = 65432  # The port used by the server
+HOST = "127.0.0.1"
+PORT = 65432
+BUFFER_SIZE = 1024
+IDENTIFIER = b"+++"
 
 
 def generate_coordinates():
-    x = random.randrange(10)
-    y = random.randrange(10)
+    x = random.randrange(100)
+    y = random.randrange(100)
     return {"x": x, "y": y}
 
 
-while True:
-    coordinates = generate_coordinates()
+def main():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((HOST, PORT))
 
-    json_data = json.dumps(coordinates).encode()
+    while True:
+        coordinates = generate_coordinates()
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((HOST, PORT))
-        s.sendall(json_data)
+        json_data = json.dumps(coordinates).encode()
+        s.sendall(IDENTIFIER + json_data)
+        response = s.recv(BUFFER_SIZE).decode()
+        print(f"{response=}")
+        time.sleep(2)
 
-        data = s.recv(1024)
 
-    print(f"Received {data}")
-
-    time.sleep(2)
+if __name__ == "__main__":
+    main()
