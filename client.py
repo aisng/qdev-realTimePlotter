@@ -6,7 +6,8 @@ import time
 HOST = "127.0.0.1"
 PORT = 65432
 BUFFER_SIZE = 1024
-IDENTIFIER = b"+++"
+MSG_START_ID = b"+++"
+MSG_END_ID = b"---"
 
 
 def generate_coordinates():
@@ -21,11 +22,10 @@ def main():
 
     while True:
         coordinates = generate_coordinates()
-
         json_data = json.dumps(coordinates).encode()
-        s.sendall(IDENTIFIER + json_data)
+        s.sendall(b"5a2sda" + MSG_START_ID + json_data + MSG_END_ID)
         response = s.recv(BUFFER_SIZE).decode()
-        print(f"{response=}")
+        print(f"{response}")
         time.sleep(2)
 
 
