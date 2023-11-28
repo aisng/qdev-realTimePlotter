@@ -16,10 +16,10 @@ def draw(length):
         plt.plot(x, y, "bo", linewidth=2, markersize=3, linestyle="solid")
 
         plt.pause(1)
-    plt.show()
+    # plt.show()
 
 
-draw(5)
+draw(1)
 
 # x = [40, 72, 45]
 # y = [42, 61, 85]
@@ -43,4 +43,21 @@ draw(5)
 # draw the plot
 # plt.draw()
 # plt.pause(0.01)
+# plt.show()
+
+
+# def update(frame):
+#     # for each frame, update the data stored on each artist.
+#     x = t[:frame]
+#     y = z[:frame]
+#     # update the scatter plot:
+#     data = np.stack([x, y]).T
+#     scat.set_offsets(data)
+#     # update the line plot:
+#     line2.set_xdata(t[:frame])
+#     line2.set_ydata(z2[:frame])
+#     return (scat, line2)
+
+
+# ani = animation.FuncAnimation(fig=fig, func=update, frames=40, interval=30)
 # plt.show()
