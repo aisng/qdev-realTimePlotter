@@ -1,12 +1,7 @@
 import socket
 import json
 import matplotlib.pyplot as plt
-import seaborn as sns
-import numpy as np
 from typing import Tuple, Union
-
-from matplotlib import animation
-from matplotlib.animation import FuncAnimation
 
 HOST = "127.0.0.1"
 PORT = 65432
@@ -31,12 +26,11 @@ def initiate_plot(title: str = "Data", x_label: str = "x", y_label: str = "y") -
 
 def update_plot(x: int, y: int) -> None:
     """Update the plot with coordinates parsed from client's message"""
-
     for elem in (x, y):
         if not isinstance(elem, int):
             raise TypeError(f"expected type int, got {type(elem)}", )
 
-    plt.plot(x, y, "bo", linewidth=2, markersize=3)
+    plt.plot(x, y, "bo", linewidth=2, markersize=4)
     plt.pause(0.1)
 
 
@@ -65,7 +59,7 @@ def handle_client(client_socket: socket.socket, client_addr: Tuple[str, int], bu
     while True:
         packet = client_socket.recv(buffer_size)
         if not packet:
-            client_socket.sendall(json.dumps({"status": ERROR}).encode())
+            client_socket.sendall(json.dumps({"status": ERROR, "message": "packet not received"}).encode())
             client_socket.close()
             break
         buffer += packet
@@ -78,10 +72,26 @@ def handle_client(client_socket: socket.socket, client_addr: Tuple[str, int], bu
             continue
 
         msg_obj = json.loads(buffer[msg_start_idx + len(MSG_START_ID):msg_end_idx])
+
+        x = msg_obj.get("x")
+        y = msg_obj.get("y")
+
+        if None in (x, y):
+            error_message = str()
+            if x is None:
+                error_message = "x must be of type int, not None"
+            if y is None:
+                error_message = "y must be of type int, not None"
+            client_socket.sendall(
+                json.dumps(
+                    {"status": ERROR, "message": error_message}).encode())
+            buffer = b""
+            continue
+
         print("MSG", msg_obj)
-        update_plot(x=msg_obj["x"], y=msg_obj["y"])
+        update_plot(x=x, y=y)
         buffer = b""
-        client_socket.sendall(json.dumps({"status": OK}).encode())
+        client_socket.sendall(json.dumps({"status": OK, "message": msg_obj}).encode())
 
 
 def run_server(host: str = HOST, port: int = PORT) -> None:

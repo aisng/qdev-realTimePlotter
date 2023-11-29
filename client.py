@@ -17,16 +17,20 @@ def generate_coordinates() -> dict:
 
 
 def run_client() -> None:
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((HOST, PORT))
-
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect((HOST, PORT))
     while True:
         coordinates = generate_coordinates()
         json_data = json.dumps(coordinates).encode()
-        s.sendall(MSG_START_ID + json_data + MSG_END_ID)
-        response = s.recv(BUFFER_SIZE).decode()
-        print(f"{response}")
+        client_socket.sendall(MSG_START_ID + json_data + MSG_END_ID)
+        response = client_socket.recv(BUFFER_SIZE)
+        response = json.loads(response)  # why does it accumulate? because buffer was not reseted
+
+        if response.get("status") == "ERROR":
+            print(response)
+
         time.sleep(2)
+    # client_socket.close()
 
 
 if __name__ == "__main__":
