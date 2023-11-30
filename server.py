@@ -44,7 +44,7 @@ def find_pattern(data: Union[str, bytes], pattern: Union[str, bytes]) -> Tuple[b
         raise TypeError("data and pattern must be of the same type")
 
     if len(data) < len(pattern):
-        raise Exception("pattern length must not exceed data length")
+        raise ValueError("pattern length must not exceed data length")
 
     for i in range(len(data) - len(pattern) + 1):
         if data[i:i + len(pattern)] == pattern:
@@ -52,7 +52,7 @@ def find_pattern(data: Union[str, bytes], pattern: Union[str, bytes]) -> Tuple[b
     return False, -1
 
 
-def handle_client(client_socket: socket.socket, client_addr: Tuple[str, int], buffer_size: int = BUFFER_SIZE) -> None:
+def handle_client(client_socket: socket.socket, client_addr: Union[str, int], buffer_size: int = BUFFER_SIZE) -> None:
     """Handle the client and read the message contained within MSG_START_ID and MSG_END_ID"""
     buffer = b""
 
