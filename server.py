@@ -44,12 +44,24 @@ def find_pattern(data: Union[str, bytes], pattern: Union[str, bytes]) -> Tuple[b
         raise TypeError("data and pattern must be of the same type")
 
     if len(data) < len(pattern):
-        raise ValueError("pattern length must not exceed data length")
+        return False, -1
 
     for i in range(len(data) - len(pattern) + 1):
         if data[i:i + len(pattern)] == pattern:
             return True, i
     return False, -1
+
+
+# TODO: find the right message type, cause now on success a dict is passed
+def send_response(client_socket: socket.socket, status: str, message: str) -> None:
+    """Send a JSON  response to the client"""
+    for elem in (status, message):
+        if not isinstance(elem, str):
+            raise TypeError("status and message must be of type str")
+
+    response = {"status": status, "message": message}
+    serialized_response = json.dumps(response).encode()
+    client_socket.sendall(serialized_response)
 
 
 def handle_client(client_socket: socket.socket, client_addr: Union[str, int], buffer_size: int = BUFFER_SIZE) -> None:
@@ -59,19 +71,30 @@ def handle_client(client_socket: socket.socket, client_addr: Union[str, int], bu
     while True:
         packet = client_socket.recv(buffer_size)
         if not packet:
-            client_socket.sendall(json.dumps({"status": ERROR, "message": "packet not received"}).encode())
+            error_message = "packet not received"
+            # client_socket.sendall(json.dumps({"status": ERROR, "message": "packet not received"}).encode())
+            send_response(client_socket, ERROR, error_message)
             client_socket.close()
             break
         buffer += packet
 
         # find message frame if present
-        msg_start_idx = find_pattern(buffer, MSG_START_ID)[1]
-        msg_end_idx = find_pattern(buffer, MSG_END_ID)[1]
+        result_start, msg_start_idx = find_pattern(buffer, MSG_START_ID)
+        result_end, msg_end_idx = find_pattern(buffer, MSG_END_ID)
 
-        if msg_start_idx == -1 or msg_end_idx == -1:
+        if not all([result_start, result_end]):
             continue
 
-        msg_obj = json.loads(buffer[msg_start_idx + len(MSG_START_ID):msg_end_idx])
+        msg_bytes = buffer[msg_start_idx + len(MSG_START_ID):msg_end_idx]
+        try:
+            msg_obj = json.loads(msg_bytes)
+        except json.decoder.JSONDecodeError as e:
+            send_response(client_socket, ERROR, f"{e}")
+
+            # client_socket.sendall(json.dumps(
+            #     {"status": ERROR, "message": e}).encode())
+            buffer = b""
+            continue
 
         x = msg_obj.get("x")
         y = msg_obj.get("y")
@@ -79,19 +102,19 @@ def handle_client(client_socket: socket.socket, client_addr: Union[str, int], bu
         if None in (x, y):
             error_message = str()
             if x is None:
-                error_message = "x must be of type int, not None"
+                error_message = "x must be of type int, got None"
             if y is None:
-                error_message = "y must be of type int, not None"
-            client_socket.sendall(
-                json.dumps(
-                    {"status": ERROR, "message": error_message}).encode())
+                error_message = "y must be of type int, got None"
+            send_response(client_socket, ERROR, error_message)
             buffer = b""
             continue
 
         print("MSG", msg_obj)
         update_plot(x=x, y=y)
         buffer = b""
-        client_socket.sendall(json.dumps({"status": OK, "message": msg_obj}).encode())
+        send_response(client_socket, OK, "coordinates received")
+
+        # client_socket.sendall(json.dumps({"status": OK, "message": msg_obj}).encode())
 
 
 def run_server(host: str = HOST, port: int = PORT) -> None:
