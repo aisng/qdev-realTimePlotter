@@ -12,6 +12,7 @@ OK = "OK"
 ERROR = "ERROR"
 
 
+# TODO: data type for message param in send_reponse
 def initiate_plot(title: str = "Data", x_label: str = "x", y_label: str = "y") -> None:
     """Initiate the plot for data visualisation"""
 
@@ -52,9 +53,9 @@ def find_pattern(data: Union[str, bytes], pattern: Union[str, bytes]) -> Tuple[b
     return False, -1
 
 
-# TODO: find the right message type, cause now on success a dict is passed
+# TODO: find the right message type, cause now on success a f"{dict}" is passed
 def send_response(client_socket: socket.socket, status: str, message: str) -> None:
-    """Send a JSON  response to the client"""
+    """Send a JSON response to the client"""
     for elem in (status, message):
         if not isinstance(elem, str):
             raise TypeError("status and message must be of type str")
@@ -65,14 +66,14 @@ def send_response(client_socket: socket.socket, status: str, message: str) -> No
 
 
 def handle_client(client_socket: socket.socket, client_addr: Union[str, int], buffer_size: int = BUFFER_SIZE) -> None:
-    """Handle the client and read the message contained within MSG_START_ID and MSG_END_ID"""
+    """Handle the client and read the message contained within MSG_START_ID and MSG_END_ID markers"""
     buffer = b""
 
     while True:
         packet = client_socket.recv(buffer_size)
         if not packet:
+            # TODO: reconsider if it's an error - maybe data stream has simply ended
             error_message = "packet not received"
-            # client_socket.sendall(json.dumps({"status": ERROR, "message": "packet not received"}).encode())
             send_response(client_socket, ERROR, error_message)
             client_socket.close()
             break
@@ -86,13 +87,12 @@ def handle_client(client_socket: socket.socket, client_addr: Union[str, int], bu
             continue
 
         msg_bytes = buffer[msg_start_idx + len(MSG_START_ID):msg_end_idx]
+        
+        # TODO: figure out how (if possible) to assert an exception
         try:
             msg_obj = json.loads(msg_bytes)
         except json.decoder.JSONDecodeError as e:
             send_response(client_socket, ERROR, f"{e}")
-
-            # client_socket.sendall(json.dumps(
-            #     {"status": ERROR, "message": e}).encode())
             buffer = b""
             continue
 
@@ -111,10 +111,8 @@ def handle_client(client_socket: socket.socket, client_addr: Union[str, int], bu
 
         print("MSG", msg_obj)
         update_plot(x=x, y=y)
-        buffer = b""
         send_response(client_socket, OK, "coordinates received")
-
-        # client_socket.sendall(json.dumps({"status": OK, "message": msg_obj}).encode())
+        buffer = b""
 
 
 def run_server(host: str = HOST, port: int = PORT) -> None:
@@ -127,7 +125,6 @@ def run_server(host: str = HOST, port: int = PORT) -> None:
         # waiting for new clients
         client_socket, client_addr = server_socket.accept()
 
-        # create a function: handle_client(client_socket, client_addr)
         handle_client(client_socket, client_addr)
 
 
