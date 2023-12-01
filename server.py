@@ -53,15 +53,16 @@ def find_pattern(data: Union[str, bytes], pattern: Union[str, bytes]) -> Tuple[b
     return False, -1
 
 
-def send_response(client_socket: socket.socket, status: str, message: str) -> None:
-    """Send a JSON response to the client"""
+def get_response_message(status: str, message: str) -> bytes:
+    """Prepare a JSON response to the client regarding packet status"""
     for elem in (status, message):
         if not isinstance(elem, str):
             raise TypeError("status and message must be of type str")
 
     response = {"status": status, "message": message}
     serialized_response = json.dumps(response).encode()
-    client_socket.sendall(serialized_response)  # todo move client socket from this function
+    return serialized_response
+    # client_socket.sendall(serialized_response)  # todo move client socket from this function
 
 
 def handle_client(client_socket: socket.socket, client_addr: Union[str, int], buffer_size: int = BUFFER_SIZE) -> None:
@@ -75,7 +76,8 @@ def handle_client(client_socket: socket.socket, client_addr: Union[str, int], bu
 
         if not packet:
             error_message = "socket connection is closed or there is an error"
-            send_response(client_socket, ERROR, error_message)
+            response = get_response_message(ERROR, error_message)
+            client_socket.sendall(response)
             client_socket.close()
             break
         buffer += packet
@@ -92,7 +94,8 @@ def handle_client(client_socket: socket.socket, client_addr: Union[str, int], bu
         try:
             msg_obj = json.loads(msg_bytes)
         except json.decoder.JSONDecodeError as e:
-            send_response(client_socket, ERROR, f"{e.__class__.__name__}: {e}")
+            response = get_response_message(ERROR, f"{e.__class__.__name__}: {e}")
+            client_socket.sendall(response)
             buffer = b""
             continue
 
@@ -108,13 +111,14 @@ def handle_client(client_socket: socket.socket, client_addr: Union[str, int], bu
                 error_message = "missing x value"
             elif not y and x:
                 error_message = "missing y value"
-            send_response(client_socket, ERROR, error_message)
+            response = get_response_message(ERROR, error_message)
+            client_socket.sendall(response)
             buffer = b""
             continue
 
         print("MSG", msg_obj)
         update_plot(x=x, y=y)
-        send_response(client_socket, OK, "coordinates received")
+        response = get_response_message(OK, "coordinates received")
         buffer = b""
 
 
