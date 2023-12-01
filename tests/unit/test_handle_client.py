@@ -28,22 +28,36 @@ def test_handle_client_positive(mock_update_plot) -> None:
     mock_update_plot.assert_called_once_with(x=1, y=1)
 
 
-@patch("server.find_pattern")
 @patch("server.update_plot")
-def test_handle_client_negative(mock_update_plot, mock_find_pattern) -> None:
+def test_handle_client_data_not_json(mock_update_plot) -> None:
     mock_client_socket = Mock()
 
-    # AAA - arrange, act, assert
-
-    # arrange
     mock_client_socket.recv.side_effect = [b"+", b"+", b"+", b'{', b'"', b'x', b'\'', b':', b' ', b'1',
-                                           b',', b' ', b' ', b'y', b'"', b':', b' ', b'1', b'}', b"-", b"-",
+                                           b',', b' ', b' ', b'y', b'z', b':', b' ', b'1', b'}', b"-", b"-",
                                            b"-", None]
 
-    mock_find_pattern.return_value = (False, -1)
-
-    # act
     handle_client(mock_client_socket, "mock_addr")
-    # assert
-    mock_find_pattern.assert_called()
+    call = mock_client_socket.sendall.call_args_list
+    first_call = call[0]
+
+    args, *_ = first_call.args
+    response_json_dict = json.loads(args)
+
+    assert "JSONDecodeError" in response_json_dict["message"]
+    mock_update_plot.assert_not_called()
+
+
+@patch("server.update_plot")
+def test_handle_client_json_data_missing_coordinate_values(mock_update_plot) -> None:
+    mock_client_socket = Mock()
+
+    mock_client_socket.recv.side_effect = [b'+++{"z": 4, "g": 87}---', None]
+
+    handle_client(mock_client_socket, "mock_addr")
+    call = mock_client_socket.sendall.call_args_list
+    first_call = call[0]
+
+    args, *_ = first_call.args
+    response_json_dict = json.loads(args)
+    assert response_json_dict["message"] == "missing x and y values"
     mock_update_plot.assert_not_called()

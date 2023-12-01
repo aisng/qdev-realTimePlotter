@@ -53,7 +53,6 @@ def find_pattern(data: Union[str, bytes], pattern: Union[str, bytes]) -> Tuple[b
     return False, -1
 
 
-# TODO: find the right message type, cause now on success a f"{dict}" is passed
 def send_response(client_socket: socket.socket, status: str, message: str) -> None:
     """Send a JSON response to the client"""
     for elem in (status, message):
@@ -62,7 +61,7 @@ def send_response(client_socket: socket.socket, status: str, message: str) -> No
 
     response = {"status": status, "message": message}
     serialized_response = json.dumps(response).encode()
-    client_socket.sendall(serialized_response)
+    client_socket.sendall(serialized_response)  # todo move client socket from this function
 
 
 def handle_client(client_socket: socket.socket, client_addr: Union[str, int], buffer_size: int = BUFFER_SIZE) -> None:
@@ -71,9 +70,11 @@ def handle_client(client_socket: socket.socket, client_addr: Union[str, int], bu
 
     while True:
         packet = client_socket.recv(buffer_size)
+
+        # analyze packet -> new_buffer,
+
         if not packet:
-            # TODO: reconsider if it's an error - maybe data stream has simply ended
-            error_message = "packet not received"
+            error_message = "socket connection is closed or there is an error"
             send_response(client_socket, ERROR, error_message)
             client_socket.close()
             break
@@ -87,24 +88,26 @@ def handle_client(client_socket: socket.socket, client_addr: Union[str, int], bu
             continue
 
         msg_bytes = buffer[msg_start_idx + len(MSG_START_ID):msg_end_idx]
-        
-        # TODO: figure out how (if possible) to assert an exception
+
         try:
             msg_obj = json.loads(msg_bytes)
         except json.decoder.JSONDecodeError as e:
-            send_response(client_socket, ERROR, f"{e}")
+            send_response(client_socket, ERROR, f"{e.__class__.__name__}: {e}")
             buffer = b""
             continue
 
         x = msg_obj.get("x")
         y = msg_obj.get("y")
 
+        # TODO consider to make a func
         if None in (x, y):
             error_message = str()
-            if x is None:
-                error_message = "x must be of type int, got None"
-            if y is None:
-                error_message = "y must be of type int, got None"
+            if not x and not y:
+                error_message = "missing x and y values"
+            elif not x and y:
+                error_message = "missing x value"
+            elif not y and x:
+                error_message = "missing y value"
             send_response(client_socket, ERROR, error_message)
             buffer = b""
             continue
