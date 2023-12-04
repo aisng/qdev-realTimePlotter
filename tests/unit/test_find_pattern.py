@@ -2,7 +2,6 @@ import pytest
 from server import find_pattern
 
 
-# TODO: reconsider the meaning of 'negative' case
 @pytest.mark.parametrize("data, pattern, expected_result, expected_index",
                          [("abcdefgh", "cd", True, 2),
                           (b"1234zxz5678", b"zxz", True, 4),

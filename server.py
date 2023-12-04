@@ -12,7 +12,6 @@ OK = "OK"
 ERROR = "ERROR"
 
 
-# TODO: data type for message param in send_reponse
 def initiate_plot(title: str = "Data", x_label: str = "x", y_label: str = "y") -> None:
     """Initiate the plot for data visualisation"""
 
@@ -62,7 +61,6 @@ def get_response_message(status: str, message: str) -> bytes:
     response = {"status": status, "message": message}
     serialized_response = json.dumps(response).encode()
     return serialized_response
-    # client_socket.sendall(serialized_response)  # todo move client socket from this function
 
 
 def handle_client(client_socket: socket.socket, client_addr: Union[str, int], buffer_size: int = BUFFER_SIZE) -> None:
@@ -71,8 +69,6 @@ def handle_client(client_socket: socket.socket, client_addr: Union[str, int], bu
 
     while True:
         packet = client_socket.recv(buffer_size)
-
-        # analyze packet -> new_buffer,
 
         if not packet:
             error_message = "socket connection is closed or there is an error"
@@ -102,7 +98,6 @@ def handle_client(client_socket: socket.socket, client_addr: Union[str, int], bu
         x = msg_obj.get("x")
         y = msg_obj.get("y")
 
-        # TODO consider to make a func
         if None in (x, y):
             error_message = str()
             if not x and not y:

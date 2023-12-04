@@ -9,7 +9,6 @@ def test_handle_client_positive(mock_update_plot) -> None:
     mock_client_socket = Mock()
 
     # AAA - arrange, act, assert
-
     # arrange
     mock_client_socket.recv.side_effect = [b"+", b"+", b"+", b'{', b'"', b'x', b'"', b':', b' ', b'1',
                                            b',', b' ', b'"', b'y', b'"', b':', b' ', b'1', b'}', b"-", b"-",
@@ -23,7 +22,7 @@ def test_handle_client_positive(mock_update_plot) -> None:
     # assert
     assert b"status" in args
     assert "status" in response_json_dict
-    assert response_json_dict.get("status") == "ERROR"  # how to test a positive response "OK"?
+    assert response_json_dict.get("status") == "ERROR"
     assert "message" in response_json_dict
     mock_update_plot.assert_called_once_with(x=1, y=1)
 
