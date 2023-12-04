@@ -24,13 +24,12 @@ def run_client() -> None:
         json_data = json.dumps(coordinates).encode()
         client_socket.sendall(MSG_START_ID + json_data + MSG_END_ID)
         response = client_socket.recv(BUFFER_SIZE)
-        response = json.loads(response)  # why does it accumulate? because buffer was not reseted
+        response = json.loads(response)
 
         if response.get("status") == "ERROR":
             print(response)
 
         time.sleep(2)
-    # client_socket.close()
 
 
 if __name__ == "__main__":

@@ -44,7 +44,7 @@ def find_pattern(data: Union[str, bytes], pattern: Union[str, bytes]) -> Tuple[b
         raise TypeError("data and pattern must be of the same type")
 
     if len(data) < len(pattern):
-        raise Exception("pattern length must not exceed data length")
+        return False, -1
 
     for i in range(len(data) - len(pattern) + 1):
         if data[i:i + len(pattern)] == pattern:
@@ -52,46 +52,69 @@ def find_pattern(data: Union[str, bytes], pattern: Union[str, bytes]) -> Tuple[b
     return False, -1
 
 
-def handle_client(client_socket: socket.socket, client_addr: Tuple[str, int], buffer_size: int = BUFFER_SIZE) -> None:
-    """Handle the client and read the message contained within MSG_START_ID and MSG_END_ID"""
+def get_response_message(status: str, message: str) -> bytes:
+    """Prepare a JSON response to the client regarding packet status"""
+    for elem in (status, message):
+        if not isinstance(elem, str):
+            raise TypeError("status and message must be of type str")
+
+    response = {"status": status, "message": message}
+    serialized_response = json.dumps(response).encode()
+    return serialized_response
+
+
+def handle_client(client_socket: socket.socket, client_addr: Union[str, int], buffer_size: int = BUFFER_SIZE) -> None:
+    """Handle the client and read the message contained within MSG_START_ID and MSG_END_ID markers"""
     buffer = b""
 
     while True:
         packet = client_socket.recv(buffer_size)
+
         if not packet:
-            client_socket.sendall(json.dumps({"status": ERROR, "message": "packet not received"}).encode())
+            error_message = "socket connection is closed or there is an error"
+            response = get_response_message(ERROR, error_message)
+            client_socket.sendall(response)
             client_socket.close()
             break
         buffer += packet
 
         # find message frame if present
-        msg_start_idx = find_pattern(buffer, MSG_START_ID)[1]
-        msg_end_idx = find_pattern(buffer, MSG_END_ID)[1]
+        result_start, msg_start_idx = find_pattern(buffer, MSG_START_ID)
+        result_end, msg_end_idx = find_pattern(buffer, MSG_END_ID)
 
-        if msg_start_idx == -1 or msg_end_idx == -1:
+        if not all([result_start, result_end]):
             continue
 
-        msg_obj = json.loads(buffer[msg_start_idx + len(MSG_START_ID):msg_end_idx])
+        msg_bytes = buffer[msg_start_idx + len(MSG_START_ID):msg_end_idx]
+
+        try:
+            msg_obj = json.loads(msg_bytes)
+        except json.decoder.JSONDecodeError as e:
+            response = get_response_message(ERROR, f"{e.__class__.__name__}: {e}")
+            client_socket.sendall(response)
+            buffer = b""
+            continue
 
         x = msg_obj.get("x")
         y = msg_obj.get("y")
 
         if None in (x, y):
             error_message = str()
-            if x is None:
-                error_message = "x must be of type int, not None"
-            if y is None:
-                error_message = "y must be of type int, not None"
-            client_socket.sendall(
-                json.dumps(
-                    {"status": ERROR, "message": error_message}).encode())
+            if not x and not y:
+                error_message = "missing x and y values"
+            elif not x and y:
+                error_message = "missing x value"
+            elif not y and x:
+                error_message = "missing y value"
+            response = get_response_message(ERROR, error_message)
+            client_socket.sendall(response)
             buffer = b""
             continue
 
-        print("MSG", msg_obj)
         update_plot(x=x, y=y)
+        response = get_response_message(OK, "coordinates received")
+        client_socket.sendall(response)
         buffer = b""
-        client_socket.sendall(json.dumps({"status": OK, "message": msg_obj}).encode())
 
 
 def run_server(host: str = HOST, port: int = PORT) -> None:
@@ -104,7 +127,6 @@ def run_server(host: str = HOST, port: int = PORT) -> None:
         # waiting for new clients
         client_socket, client_addr = server_socket.accept()
 
-        # create a function: handle_client(client_socket, client_addr)
         handle_client(client_socket, client_addr)
 
 
