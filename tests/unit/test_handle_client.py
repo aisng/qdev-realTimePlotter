@@ -59,5 +59,6 @@ def test_handle_client_json_data_missing_coordinate_values(mock_update_plot) -> 
 
     args, *_ = first_call.args
     response_json_dict = json.loads(args)
-    assert response_json_dict["message"] == "missing x and y values"
+
+    assert response_json_dict.get("message") == "missing x and y values"
     mock_update_plot.assert_not_called()

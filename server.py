@@ -116,9 +116,9 @@ def handle_client(client_socket: socket.socket, client_addr: Union[str, int], bu
             buffer = b""
             continue
 
-        print("MSG", msg_obj)
         update_plot(x=x, y=y)
         response = get_response_message(OK, "coordinates received")
+        client_socket.sendall(response)
         buffer = b""
 
 
